@@ -5,7 +5,10 @@ using UnityEngine.UI;
 
 public enum GameMode
 {
-
+    idle,
+    playing,
+    levelEnd
+    
 
 }
 
@@ -13,47 +16,136 @@ public class MissionDemolition : MonoBehaviour {
     static private MissionDemolition S; // a private Singleton
 
     [Header("Set in Inspector")]
-
+    public Text uitLevel; // The UIText_Level Text
+    public Text uitShots; // The UIText_Shots Text
+    public Text uitButton; // The Text on UIButton_View
+    public Vector3 castlePos; // The place to put the Castles
+    public GameObject[] castles; // An Array of the Castles
 
     [Header("Set Dynamically")]
+    public int level; // The Current Level
+    public int levelMax; // The Number of Levels
+    public int shotsTaken;
+    public GameObject castle; // The Current Castle
+    public GameMode mode = GameMode.idle;
+    public string showing = "Showing Slingshot"; // FollowCam Mode
 
-
-	// Use this for initialization
-	void Start ()
+    void Start()
     {
+        S = this; // Define the Singleton
 
+        level = 0;
+        levelMax = castles.Length;
+        StartLevel();
     }
-	
-	void StartLevel()
+
+    void StartLevel()
     {
         // Get rid of the old castle if one exists
- 
+
+        if (castle != null)
+        {
+            Destroy(castle);
+        }
+
+        // Destroy old projectiles if they exist
+
+        GameObject[] gos = GameObject.FindGameObjectsWithTag("Projectile");
+        foreach (GameObject pTemp in gos)
+        {
+            Destroy(pTemp);
+        }
+
+        // Instantiate the new Castle
+
+        castle = Instantiate<GameObject>(castles[level]);
+        castle.transform.position = castlePos;
+        shotsTaken = 0;
+
+        // Reset the Camera
+
+        SwitchView("Show Both");
+        ProjectileLine.S.Clear();
+
+        // Reset the Goal
+
+        Goal.goalMet = false;
+
+        UpdateGUI();
+
+        mode = GameMode.playing;
     }
 
     void UpdateGUI()
     {
-
+        // Show the data in the GUITexts
+        uitLevel.text = "Level: " + (level + 1) + "of" + levelMax;
+        uitShots.text = "Shots Taken: " + shotsTaken;
     }
 
     void Update()
     {
+        UpdateGUI();
 
+        // Check for level end
+        if ((mode == GameMode.playing) && Goal.goalMet)
+        {
+            // Change mode to stop checking for level end
 
+            mode = GameMode.levelEnd;
+
+            // Zoom out
+
+            SwitchView("Show Both");
+
+            // Start the Next Level in 2 seconds
+
+            Invoke("NextLevel", 2f);
+        }
     }
 
     void NextLevel()
     {
+        level++;
+        
+        if (level == levelMax)
+        {
+            level = 0;
+        }
 
+        StartLevel();
     }
 
     public void SwitchView(string eView = "")
     {
+        if (eView == "")
+        {
+            eView = uitButton.text;
+        }
+        showing = eView;
 
+        switch (showing)
+        {
+            case "Show Slingshot":
+                FollowCam.POI = null;
+                uitButton.text = "Show Castle";
+                break;
+
+            case "Show Castles":
+                FollowCam.POI = S.castle;
+                uitButton.text = "Show Both";
+                break;
+
+            case "Show Both":
+                FollowCam.POI = GameObject.Find("ViewBoth");
+                uitButton.text = "Show Slingshot";
+                break;
+        }
     }
 
     // Static method that allows code anywhere to increment shotsTaken
     public static void ShotFired()
     {
-
+        S.shotsTaken++;
     }
 }
